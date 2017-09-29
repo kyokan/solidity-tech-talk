@@ -16,17 +16,34 @@ console.log({ contract, abi, abiDecoder })
 
 class App extends Component {
 
-  state = {};
+  constructor(props) {
+    super(props);
+    this.pullGameStatus = this.pullGameStatus.bind(this);
+  }
+
+  state = {
+    isFetching: false,
+  };
 
   async componentWillMount() {
+    this.pullGameStatus();
+    setInterval(this.pullGameStatus, 5000);
+  }
+
+  async pullGameStatus () {
+    this.setState({ isFetching: true });
     const [account] = await eth.accounts();
     const game = await contract.query({ from: account });
+    const { words = []} = game || {};
+    const [status] = words;
+
     this.setState({
       cards: game.cards,
       dealer: game.dealer,
       dealerTotal: game.dealerTotal,
       gameStatus: game.gameStatus,
       playerTotal: game.playerTotal,
+      isFetching: false,
     });
   }
 
@@ -35,7 +52,7 @@ class App extends Component {
     const value = words[0] % 13 + 1;
 
     return {
-      value: value < 10
+      value: value <= 10
         ? value
         : {11: 'J', 12: 'Q', 13: 'K'}[value],
       point: value > 10
@@ -49,11 +66,12 @@ class App extends Component {
       <div>
         <button
           onClick={async e => {
+            this.setState({ isFetching: true });
             e.persist();
 
             const [account] = await eth.accounts();
 
-            contract.start({ from: account });
+            contract.start({ from: account })
 
             window.dispatchEvent(e.nativeEvent);
           }}
@@ -168,11 +186,13 @@ class App extends Component {
         <div style={{ margin: '12px 0'}}>
           <button
             onClick={async e => {
+              this.setState({ isFetching: true });
               e.persist();
 
               const [account] = await eth.accounts();
 
-              contract.hit({ from: account });
+              contract
+                .hit({ from: account })
 
               window.dispatchEvent(e.nativeEvent);
             }}
@@ -181,11 +201,13 @@ class App extends Component {
           </button>
           <button
             onClick={async e => {
+              this.setState({ isFetching: true });
               e.persist();
 
               const [account] = await eth.accounts();
 
-              contract.hold({ from: account });
+              contract
+                .hold({ from: account })
 
               window.dispatchEvent(e.nativeEvent);
             }}
@@ -199,7 +221,7 @@ class App extends Component {
   }
 
   render() {
-    const { gameStatus } = this.state;
+    const { gameStatus, isFetching } = this.state;
     const { words = []} = gameStatus || {};
     const [status] = words;
 
@@ -209,8 +231,26 @@ class App extends Component {
           <h1 className="App-title">Welcome to Blackjack</h1>
         </header>
         <div className="App-intro">
+          {isFetching && (
+            <div style={{
+              'display': 'inline-flex',
+              'flex-flow': 'column nowrap',
+              'background-color': 'rgba(0, 0, 0, 0.7)',
+              'color': 'white',
+              'position': 'fixed',
+              'top': '0',
+              'bottom': '0',
+              'margin': 'auto',
+              'left': '0',
+              'right': '0',
+              'align-items': 'center',
+              'justify-content': 'center',
+            }}>
+              Loading...
+            </div>
+          )}
           {status === 0 ? this.renderStartGame() : this.renderGame()}
-          {status > 1 && (
+          {status > 1 && !isFetching && (
             <div style={{
               'display': 'inline-flex',
               'flex-flow': 'column nowrap',
@@ -229,11 +269,13 @@ class App extends Component {
               {status === 3 && 'You Lost!'}
               <button
                 onClick={async e => {
+                  this.setState({ isFetching: true });
+
                   e.persist();
 
                   const [account] = await eth.accounts();
 
-                  contract.start({ from: account });
+                  contract.start({ from: account })
 
                   window.dispatchEvent(e.nativeEvent);
                 }}
